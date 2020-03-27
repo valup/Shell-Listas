@@ -21,29 +21,6 @@ int menor(int a, int b) {
   return a < b;
 }
 
-// char* argumentos(char* com, int* cant) {
-//   int longs[4] = {0,0,0,0}, i = 0, j = 1, l = 0;
-//   for(;com[i] != '\0' && *cant < 4; i++) {
-//     if (com[i] == ' ') {
-//       longs[*cant] = j;
-//       (*cant)++;
-//       j = 1;
-//     } else { j++;}
-//   }
-//   longs[*cant] = j;
-//   (*cant)++;
-//   char** args = malloc(sizeof(char*)*(*cant));
-//   for(i = 0, j = 0; j <= (*cant); j++) {
-//     args[j] = malloc(sizeof(char)*longs[j]);
-//     for(l = 0; com[i] != ' ' && com[i] != '\0'; i++, l++) {
-//       args[j][l] = com[i];
-//     }
-//     args[j][l] = '\0';
-//     i++;
-//   }
-//   return args;
-// }
-
 //eliminar_lista: GList char* -> GList
 //recibe una lista de listas y el nombre de una lista
 //la busca y si la encuentra la destruye
@@ -113,13 +90,25 @@ void destruir_listas(GList listas) {
   }
 }
 
+void empty_stdin()
+{
+    int c = getchar();
+    while (c != '\n' && c != EOF)
+        c = getchar();
+}
+
 int main(int argc, char const *argv[]) {
   printf("Ingrese 'help' para informacion sobre los comandos\n");
   GList listas = glist_crear();//lista de listas creadas
   char* buf = malloc(sizeof(char) * MAX_LEN);
   while (1) {
     printf(">> ");
-    scanf("%s", buf);
+
+    // [^\n] indica "leer hasta encontar.."
+    scanf("%[^\n]s", buf);
+
+    // Limpiamos el buffer para le proxima entrada
+    empty_stdin();
 
     int args = 0, esta, esta1, esta2;
     Lista *l1, *l2;
@@ -128,34 +117,48 @@ int main(int argc, char const *argv[]) {
     //para chequear si se encuentra la lista buscada
     //l1 y l2 se usan en concatenar e intersecar
 
-    char *partes[4], *parte = strtok(buf, " ");
+    char *partes[4];
+    char *parte = malloc(sizeof(char)*MAX_LEN);
+    parte = strtok(buf, " ");
+
+    // Asignamos memoria para las cadenas a utlizar
+    for(int i = 0; i < 4; i++)
+      partes[i] = malloc(sizeof(char)*MAX_LEN);
+
+
     //partes guardara los argumentos del comando
     //que son separados en parte con strtok
-    for(; args < 4 && parte != NULL; args++) {
-      partes[args] = malloc(sizeof(parte));
-      strcpy(partes[args], parte);
+    while(parte){
+      strcpy(partes[args++], parte);
       parte = strtok(NULL," ");
     }
-    for(int i = 0; i < args; i++) {
-      printf("%s\n", partes[i]);//test de argumentos
-      //el programa sigue antes de terminar de imprimirlos
-    }
 
-    if(!strcmp(partes[0],"crear")) {
+    if(!strcmp(partes[0], "crear"))
+    {
       //assert(args > 1);
 
       Lista* l = malloc(sizeof(Lista));
-      l->nombre = partes[1];
+      l->nombre = malloc(sizeof(char)*MAX_LEN);
+      strcpy(l->nombre, partes[1]);
+      //l->nombre = partes[1];
       l->lista = slist_crear();
-
       listas = glist_agregar_inicio(listas, (void*) l);
       printf("Lista %s creada exitosamente\n", partes[1]);
+      for (GList nodo = listas; nodo != NULL; nodo = nodo->sig) {
+        Lista* l = (Lista*) nodo->dato;
+        printf("%s ", l->nombre);
+      }
+      puts("");
 
-    } else if (!strcmp(partes[0],"destruir")) {
+    }
+    else if (!strcmp(partes[0],"destruir"))
+    {
       //assert(args > 1);
       listas = eliminar_lista(listas, partes[1]);
 
-    } else if (!strcmp(partes[0],"imprimir")) {
+    }
+    else if (!strcmp(partes[0],"imprimir"))
+    {
       //assert(args > 1);
 
       esta = 0;
@@ -173,7 +176,9 @@ int main(int argc, char const *argv[]) {
       if (!esta) {
         printf("ERROR: no existe la lista %s\n", partes[1]);
       }
-    } else if (!strcmp(partes[0],"agregar_final")) {
+    }
+    else if (!strcmp(partes[0],"agregar_final"))
+    {
       //assert(args > 2);
       //assert(isdigit(partes[2]));
 
@@ -195,7 +200,9 @@ int main(int argc, char const *argv[]) {
         printf("ERROR: no existe la lista %s\n", partes[1]);
       }
 
-    } else if (!strcmp(partes[0],"agregar_inicio")) {
+    }
+    else if (!strcmp(partes[0],"agregar_inicio"))
+    {
       //assert(args > 2);
       //assert(isdigit(partes[2]));
 
@@ -217,7 +224,9 @@ int main(int argc, char const *argv[]) {
         printf("ERROR: no existe la lista %s\n", partes[1]);
       }
 
-    } else if (!strcmp(partes[0],"agregar_pos")) {
+    }
+    else if (!strcmp(partes[0],"agregar_pos"))
+    {
       //assert(args > 2);
       //assert(isdigit(partes[2]) && isdigit(partes[3]));
 
@@ -239,7 +248,9 @@ int main(int argc, char const *argv[]) {
         printf("ERROR: no existe la lista %s\n", partes[1]);
       }
 
-    } else if (!strcmp(partes[0],"longitud")) {
+    }
+    else if (!strcmp(partes[0],"longitud"))
+    {
       //assert(args > 1);
 
       esta = 0;
@@ -256,15 +267,19 @@ int main(int argc, char const *argv[]) {
         printf("ERROR: no existe la lista %s\n", partes[1]);
       }
 
-    } else if (!strcmp(partes[0],"concatenar")) {
+    }
+    else if (!strcmp(partes[0],"concatenar"))
+    {
       //assert(args > 3);
 
-      esta1 = 0, esta2 = 0;
-      for (GList nodo = listas; nodo != NULL && (!esta1 || !esta2); nodo = nodo->sig) {
+      esta1 = 0, esta2 = 0, esta = 0;
+      for (GList nodo = listas; nodo != NULL && !esta; nodo = nodo->sig) {
         Lista* n = (Lista*) nodo->dato;
         //si coincide alguno de los nombres
         //la guardo en el lugar correspondiente
         //y marco cual encontre
+        printf("%s = %s? %d\n", n->nombre, partes[1],!strcmp(n->nombre, partes[1]));
+        printf("%s = %s? %d\n", n->nombre, partes[2],!strcmp(l1->nombre, partes[2]));
         if (!strcmp(n->nombre, partes[1])) {
           l1 = n;
           esta1++;
@@ -272,12 +287,16 @@ int main(int argc, char const *argv[]) {
           l2 = n;
           esta2++;
         }
+
+        if (esta1 && esta2) {
+          esta++;
+        }
       }
 
       if (!esta1) {
         printf("ERROR: no existe la lista %s\n", partes[1]);
       } else if (!esta2) {
-        printf("ERROR: no existe la lista %s\n", partes[1]);
+        printf("ERROR: no existe la lista %s\n", partes[2]);
       } else {
         Lista* l = malloc(sizeof(Lista));
         l->nombre = partes[3];
@@ -289,7 +308,9 @@ int main(int argc, char const *argv[]) {
         puts("");
       }
 
-    } else if (!strcmp(partes[0],"eliminar")) {
+    }
+    else if (!strcmp(partes[0],"eliminar"))
+    {
       //assert(args > 2);
       //assert(isdigit(partes[2]));
 
@@ -311,7 +332,9 @@ int main(int argc, char const *argv[]) {
         printf("ERROR: no existe la lista %s\n", partes[1]);
       }
 
-    } else if (!strcmp(partes[0],"contiene")) {
+    }
+    else if (!strcmp(partes[0],"contiene"))
+    {
       //assert(args > 2);
       //assert(isdigit(partes[2]));
 
@@ -331,7 +354,9 @@ int main(int argc, char const *argv[]) {
         printf("ERROR: no existe la lista %s\n", partes[1]);
       }
 
-    } else if (!strcmp(partes[0],"indice")) {
+    }
+    else if (!strcmp(partes[0],"indice"))
+    {
       //assert(args > 2);
       //assert(isdigit(partes[2]));
 
@@ -349,7 +374,9 @@ int main(int argc, char const *argv[]) {
         printf("ERROR: no existe la lista %s\n", partes[1]);
       }
 
-    } else if (!strcmp(partes[0],"intersecar")) {
+    }
+    else if (!strcmp(partes[0],"intersecar"))
+    {
       //assert(args > 3);
 
       esta1 = 0, esta2 = 0;
@@ -357,9 +384,11 @@ int main(int argc, char const *argv[]) {
         Lista* n = (Lista*) nodo->dato;
 
         if (!strcmp(n->nombre, partes[1])) {
+          printf("%s = %s\n", n->nombre, partes[1]);
           l1 = n;
           esta1++;
         } else if (!strcmp(l1->nombre, partes[2])) {
+          printf("%s = %s\n", n->nombre, partes[2]);
           l2 = n;
           esta2++;
         }
@@ -368,7 +397,7 @@ int main(int argc, char const *argv[]) {
       if (!esta1) {
         printf("ERROR: no existe la lista %s\n", partes[1]);
       } else if (!esta2) {
-        printf("ERROR: no existe la lista %s\n", partes[1]);
+        printf("ERROR: no existe la lista %s\n", partes[2]);
       } else {
         Lista* l = malloc(sizeof(Lista));
         l->nombre = partes[3];
@@ -380,14 +409,17 @@ int main(int argc, char const *argv[]) {
         puts("");
       }
 
-    } else if (!strcmp(partes[0],"ordenar")) {
+    }
+    else if (!strcmp(partes[0],"ordenar"))
+    {
       //assert(args > 1);
 
       esta = 0;
       for (GList nodo = listas; nodo != NULL && !esta; nodo = nodo->sig) {
         Lista* l = (Lista*) nodo->dato;
 
-        if (!strcmp(l->nombre, partes[1])) {
+        if (!strcmp(l->nombre, partes[1]))
+        {
           esta++;
           l->lista = slist_ordenar(l->lista, menor);
           printf("Lista ordenada exitosamente: %s = ", partes[1]);
@@ -396,18 +428,22 @@ int main(int argc, char const *argv[]) {
         }
       }
 
-      if (!esta) {
+      if (!esta)
         printf("ERROR: no existe la lista %s\n", partes[1]);
-      }
 
-    } else if (!strcmp(partes[0],"quit")) {
+    }
+    else if (!strcmp(partes[0],"quit"))
+    {
       //libero antes de salir
       //unica forma de salir
       destruir_listas(listas);
       free(buf);
-      return 0;
 
-    } else if (!strcmp(partes[0],"help")) {
+      return 0;
+    }
+
+    else if (!strcmp(partes[0], "help"))
+    {
       puts("Comandos:");
       puts("crear l: crea una lista de nombre l");
       puts("destruir l: destruye la lista l");
@@ -424,9 +460,12 @@ int main(int argc, char const *argv[]) {
       puts("ordenar l: ordena los elementos de la lista l de menor a mayor");
       puts("quit: sale del prompt");
 
-    } else {
+    }
+    else
+    {
       puts("ERROR: comando invalido");
     }
   }
   return 0;
 }
+
