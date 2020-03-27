@@ -132,7 +132,7 @@ int main(int argc, char const *argv[]) {
     //partes guardara los argumentos del comando
     //que son separados en parte con strtok
     for(; args < 4 && parte != NULL; args++) {
-      partes[args] = parte;
+      strcpy(partes[args], parte);
       parte = strtok(NULL," ");
     }
     for(int i = 0; i < args; i++) {
