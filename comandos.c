@@ -4,14 +4,9 @@
 #include <assert.h>
 #include <ctype.h>
 #include "slist.h"
-#include "glist.h"
+#include "lista.h"
 
 #define MAX_LEN 100
-
-typedef struct _Lista {
-  char* nombre; //nombre que da el usuario a la lista
-  SNodo* lista;
-} Lista;
 
 static void imprimir_entero(int dato) {
   printf("%d ", dato);
@@ -21,72 +16,21 @@ int menor(int a, int b) {
   return a < b;
 }
 
-//eliminar_lista: GList char* -> GList
-//recibe una lista de listas y el nombre de una lista
-//la busca y si la encuentra la destruye
-GList eliminar_lista(GList listas, char* nombre) {
-  //assert(listas != NULL);
-
-  Lista* l = (Lista*) listas->dato;
-  //compara con primera lista
-  if (!strcmp(l->nombre, nombre)) {
-    GList ret = listas->sig;
-    Lista* l = (Lista*) listas->dato;
-
-    slist_destruir(l->lista);
-    free(listas->dato);
-    free(listas);
-
-    printf("Lista %s destruida exitosamente\n", nombre);
-    return ret;
-  }
-
-  for (GList nodo = listas; nodo->sig != NULL; nodo = nodo->sig) {
-    l = (Lista*) nodo->sig->dato;
-    //compara con lista siguiente
-    if (!strcmp(l->nombre, nombre)) {
-      GList sig = nodo->sig->sig;
-
-      slist_destruir(l->lista);
-      free(nodo->sig->dato);
-      free(nodo->sig);
-
-      nodo->sig = sig;
-      printf("Lista %s destruida exitosamente\n", nombre);
-      return listas;
-    }
-  }
-  //solo sale si no encontro la lista
-  printf("ERROR: no hay lista creada con ese nombre");
-}
-
 //indice: SList int -> void
 //recibe una slist y un dato e imprime en pantalla
 //todas las posiciones del dato en la lista si esta
 void indice(SList lista, int dato) {
   int i = 0, cont = 0;
   for (SList nodo = lista; nodo != NULL; i++, nodo = nodo->sig) {
-    if (nodo->dato ==  dato) {
+    if (nodo->dato == dato) {
       printf("%d ", i);
       cont++;
     }
   }
   if (!cont) {
     puts("ERROR: El dato no esta en la lista");
-  }
-}
-
-//destruir_listas: GList -> void
-//recibe una lista de listas y la destruye
-void destruir_listas(GList listas) {
-  GNodo *nodoAEliminar;
-  while (listas != NULL) {
-    nodoAEliminar = listas;
-    listas = listas->sig;
-    Lista* l = (Lista *) nodoAEliminar->dato;
-    slist_destruir(l->lista);
-    free(l);
-    free(nodoAEliminar);
+  } else {
+    printf("\n");
   }
 }
 
@@ -99,8 +43,14 @@ void empty_stdin()
 
 int main(int argc, char const *argv[]) {
   printf("Ingrese 'help' para informacion sobre los comandos\n");
-  GList listas = glist_crear();//lista de listas creadas
-  char* buf = malloc(sizeof(char) * MAX_LEN);
+
+  // Lista de listas creadas
+  Listas lista = lista_crear();
+
+  // Buffer para leer la entrada estandar
+  char* buf = malloc(sizeof(char)*MAX_LEN);
+
+  // Bucle de Shell
   while (1) {
     printf(">> ");
 
@@ -110,14 +60,10 @@ int main(int argc, char const *argv[]) {
     // Limpiamos el buffer para le proxima entrada
     empty_stdin();
 
-    int args = 0, esta, esta1, esta2;
-    Lista *l1, *l2;
+    int args = 0;
     //args = cant de argumentos del comando
-    //esta, esta1 y esta2 son usados por varios comandos
-    //para chequear si se encuentra la lista buscada
-    //l1 y l2 se usan en concatenar e intersecar
 
-    char *partes[4];
+    char **partes = malloc(sizeof(char*)*4);
     char *parte = malloc(sizeof(char)*MAX_LEN);
     parte = strtok(buf, " ");
 
@@ -133,96 +79,92 @@ int main(int argc, char const *argv[]) {
       parte = strtok(NULL," ");
     }
 
-    if(!strcmp(partes[0], "crear"))
-    {
-      //assert(args > 1);
-
-      Lista* l = malloc(sizeof(Lista));
-      l->nombre = malloc(sizeof(char)*MAX_LEN);
-      strcpy(l->nombre, partes[1]);
-      //l->nombre = partes[1];
-      l->lista = slist_crear();
-      listas = glist_agregar_inicio(listas, (void*) l);
-      printf("Lista %s creada exitosamente\n", partes[1]);
-      for (GList nodo = listas; nodo != NULL; nodo = nodo->sig) {
-        Lista* l = (Lista*) nodo->dato;
-        printf("%s ", l->nombre);
+    // Crear nueva lista enlazada
+    if(!strcmp(partes[0], "crear")){
+      Listas lista_ptr = lista;
+      int existe = 0;
+      while (lista_ptr)
+      {
+        // Si la lista ya existe, no volver a crearla
+        if (!strcmp(partes[1], lista_ptr->nombre))
+        {
+          printf("La lista %s ya existe!\n", partes[1]);
+          existe = 1;
+          break;
+        }
+        lista_ptr = lista_ptr->sig;
       }
-      puts("");
+
+      // Si existe la lista, volver al shell
+      if (existe)
+        continue;
+
+
+      SList slist = slist_crear();
+      lista = lista_agregar_inicio(lista, partes[1], slist);
+      printf("Lista %s creada exitosamente\n", partes[1]);
 
     }
     else if (!strcmp(partes[0],"destruir"))
     {
       //assert(args > 1);
-      listas = eliminar_lista(listas, partes[1]);
+      lista = lista_eliminar(lista, partes[1]);
 
     }
-    else if (!strcmp(partes[0],"imprimir"))
+
+    else if (!strcmp(partes[0], "imprimir"))
     {
-      //assert(args > 1);
-
-      esta = 0;
-      for (GList nodo = listas; nodo != NULL && !esta; nodo = nodo->sig) {
-        Lista* l = (Lista*) nodo->dato;
-
-        if (!strcmp(l->nombre,partes[1])) {
-          //compara el nombre buscado con los de las listas creadas
-          esta++;
-          slist_recorrer(l->lista,imprimir_entero);
-          puts("");
+      Listas lista_ptr = lista;
+      while(lista_ptr)
+      {
+        if (!strcmp(lista_ptr->nombre, partes[1]))
+        {
+          slist_recorrer(lista_ptr->lista, imprimir_entero);
+          break;
         }
+        lista_ptr = lista_ptr->sig;
       }
 
-      if (!esta) {
+      if (!lista_ptr)
         printf("ERROR: no existe la lista %s\n", partes[1]);
-      }
     }
-    else if (!strcmp(partes[0],"agregar_final"))
+    else if (!strcmp(partes[0], "agregar_final"))
     {
-      //assert(args > 2);
-      //assert(isdigit(partes[2]));
-
-      esta = 0;
-      for (GList nodo = listas; nodo != NULL && !esta; nodo = nodo->sig) {
-        Lista* l = (Lista*) nodo->dato;
-
-        if (!strcmp(l->nombre, partes[1])) {
-          esta++;
-          l->lista = slist_agregar_final(l->lista, atoi(partes[2]));
-
+      Listas lista_ptr = lista;
+      while(lista_ptr)
+      {
+        if (!strcmp(lista_ptr->nombre, partes[1]))
+        {
+          lista_ptr->lista = slist_agregar_final(lista_ptr->lista, atoi(partes[2]));
           printf("Elemento agregado exitosamente: %s = ", partes[1]);
-          slist_recorrer(l->lista, imprimir_entero);
-          puts("");
+          slist_recorrer(lista_ptr->lista, imprimir_entero);
+          break;
         }
+        lista_ptr = lista_ptr->sig;
       }
 
-      if (!esta) {
+      if (!lista_ptr)
         printf("ERROR: no existe la lista %s\n", partes[1]);
-      }
 
     }
-    else if (!strcmp(partes[0],"agregar_inicio"))
+    else if (!strcmp(partes[0], "agregar_inicio"))
     {
-      //assert(args > 2);
-      //assert(isdigit(partes[2]));
 
-      esta = 0;
-      for (GList nodo = listas; nodo != NULL && !esta; nodo = nodo->sig) {
-        Lista* l = (Lista*) nodo->dato;
-
-        if (!strcmp(l->nombre, partes[1])) {
-          esta++;
-          l->lista = slist_agregar_inicio(l->lista, atoi(partes[2]));
-
+      Listas lista_ptr = lista;
+      while(lista_ptr)
+      {
+        if (!strcmp(lista_ptr->nombre, partes[1]))
+        {
+          lista_ptr->lista = slist_agregar_inicio(lista_ptr->lista, atoi(partes[2]));
           printf("Elemento agregado exitosamente: %s = ", partes[1]);
-          slist_recorrer(l->lista, imprimir_entero);
-          puts("");
+          slist_recorrer(lista_ptr->lista, imprimir_entero);
+          break;
         }
+        lista_ptr = lista_ptr->sig;
       }
 
-      if (!esta) {
+      if (!lista_ptr)
         printf("ERROR: no existe la lista %s\n", partes[1]);
-      }
 
     }
     else if (!strcmp(partes[0],"agregar_pos"))
@@ -230,214 +172,241 @@ int main(int argc, char const *argv[]) {
       //assert(args > 2);
       //assert(isdigit(partes[2]) && isdigit(partes[3]));
 
-      esta = 0;
-      for (GList nodo = listas; nodo != NULL && !esta; nodo = nodo->sig) {
-        Lista* l = (Lista*) nodo->dato;
-
-        if (!strcmp(l->nombre, partes[1])) {
-        esta++;
-        l->lista = slist_insertar(l->lista, atoi(partes[3]), atoi(partes[2]));
-
-        printf("Elemento agregado exitosamente: %s = ", partes[1]);
-        slist_recorrer(l->lista, imprimir_entero);
-        puts("");
+      Listas lista_ptr = lista;
+      while(lista_ptr)
+      {
+        if (!strcmp(lista_ptr->nombre, partes[1]))
+        {
+          lista_ptr->lista = slist_insertar(lista_ptr->lista, atoi(partes[3]), atoi(partes[2]));
+          printf("Elemento agregado exitosamente: %s = ", partes[1]);
+          slist_recorrer(lista_ptr->lista, imprimir_entero);
+          break;
         }
+        lista_ptr = lista_ptr->sig;
       }
 
-      if (!esta) {
+      if (!lista_ptr)
         printf("ERROR: no existe la lista %s\n", partes[1]);
-      }
 
     }
     else if (!strcmp(partes[0],"longitud"))
     {
       //assert(args > 1);
 
-      esta = 0;
-      for (GList nodo = listas; nodo != NULL && !esta; nodo = nodo->sig) {
-        Lista* l = (Lista*) nodo->dato;
-
-        if (!strcmp(l->nombre, partes[1])) {
-          esta++;
-          printf("Longitud de %s = %d\n", partes[1], slist_longitud(l->lista));
+      Listas lista_ptr = lista;
+      while(lista_ptr)
+      {
+        if (!strcmp(lista_ptr->nombre, partes[1]))
+        {
+          printf("Longitud de %s = %d\n", partes[1], slist_longitud(lista_ptr->lista));
+          break;
         }
+        lista_ptr = lista_ptr->sig;
       }
 
-      if (!esta) {
+      if (!lista_ptr)
         printf("ERROR: no existe la lista %s\n", partes[1]);
-      }
 
     }
-    else if (!strcmp(partes[0],"concatenar"))
+
+    else if (!strcmp(partes[0], "concatenar"))
     {
-      //assert(args > 3);
+      Listas lista_ptr1 = lista;
+      Listas lista_ptr2 = lista;
 
-      esta1 = 0, esta2 = 0, esta = 0;
-      for (GList nodo = listas; nodo != NULL && !esta; nodo = nodo->sig) {
-        Lista* n = (Lista*) nodo->dato;
-        //si coincide alguno de los nombres
-        //la guardo en el lugar correspondiente
-        //y marco cual encontre
-        printf("%s = %s? %d\n", n->nombre, partes[1],!strcmp(n->nombre, partes[1]));
-        printf("%s = %s? %d\n", n->nombre, partes[2],!strcmp(l1->nombre, partes[2]));
-        if (!strcmp(n->nombre, partes[1])) {
-          l1 = n;
-          esta1++;
-        } else if (!strcmp(l1->nombre, partes[2])) {
-          l2 = n;
-          esta2++;
-        }
-
-        if (esta1 && esta2) {
-          esta++;
-        }
+      // Checkear que lista1 exista
+      while (lista_ptr1){
+        if (!strcmp(lista_ptr1->nombre, partes[1]))
+          break;
+        lista_ptr1 = lista_ptr1->sig;
       }
 
-      if (!esta1) {
+      if (!lista_ptr1){
         printf("ERROR: no existe la lista %s\n", partes[1]);
-      } else if (!esta2) {
+        continue;
+      }
+
+      // Checkear que lista2 exista
+      while (lista_ptr2){
+        if (!strcmp(lista_ptr2->nombre, partes[2]))
+          break;
+        lista_ptr2 = lista_ptr2->sig;
+      }
+
+      if (!lista_ptr2){
         printf("ERROR: no existe la lista %s\n", partes[2]);
-      } else {
-        Lista* l = malloc(sizeof(Lista));
-        l->nombre = partes[3];
-        l->lista = slist_concatenar(l1->lista, l2->lista);
-
-        listas = glist_agregar_inicio(listas, (void*) l);
-        printf("Lista creada exitosamente: %s = ", partes[3]);
-        slist_recorrer(l->lista, imprimir_entero);
-        puts("");
+        continue;
       }
 
+      // Concatenar listas
+      //SList slist = slist_concatenar(lista_ptr1->lista, lista_ptr2->lista);
+      SList slist_ptr = lista_ptr1->lista;
+      SList slist = slist_crear();
+
+      while(slist_ptr)
+      {
+        slist = slist_agregar_final(slist, slist_ptr->dato);
+        slist_ptr = slist_ptr->sig;
+      }
+
+      slist_ptr = lista_ptr2->lista;
+
+      while(slist_ptr)
+      {
+        slist = slist_agregar_final(slist, slist_ptr->dato);
+        slist_ptr = slist_ptr->sig;
+      }
+
+      lista = lista_agregar_final(lista, partes[3], slist);
+
     }
-    else if (!strcmp(partes[0],"eliminar"))
+
+    else if (!strcmp(partes[0], "eliminar"))
+    {
+      Listas lista_ptr = lista;
+      while(lista_ptr)
+      {
+        if (!strcmp(lista_ptr->nombre, partes[1]))
+          break;
+        lista_ptr = lista_ptr->sig;
+      }
+
+      if (!lista_ptr)
+      {
+        printf("ERROR: no existe la lista %s\n", partes[1]);
+        continue;
+      }
+
+      lista_ptr->lista = slist_eliminar(lista_ptr->lista, atoi(partes[2]));
+      printf("Elemento eliminado exitosamente: %s = ", partes[1]);
+      slist_recorrer(lista_ptr->lista, imprimir_entero);
+
+    }
+    else if (!strcmp(partes[0], "contiene"))
+    {
+      Listas lista_ptr = lista;
+      while(lista_ptr)
+      {
+        if(!strcmp(lista_ptr->nombre, partes[1]))
+          break;
+        lista_ptr = lista_ptr->sig;
+      }
+
+      if(!lista_ptr){
+        printf("ERROR: no existe la lista %s\n", partes[1]);
+        continue;
+      }
+
+      if(slist_contiene(lista_ptr->lista, atoi(partes[2])))
+        puts("SI");
+      else
+        puts("NO");
+
+    }
+    else if (!strcmp(partes[0], "indice"))
     {
       //assert(args > 2);
       //assert(isdigit(partes[2]));
-
-      esta = 0;
-      for (GList nodo = listas; nodo != NULL && !esta; nodo = nodo->sig) {
-        Lista* l = (Lista*) nodo->dato;
-
-        if (!strcmp(l->nombre, partes[1])) {
-          esta++;
-          l->lista = slist_eliminar(l->lista, atoi(partes[2]));
-
-          printf("Elemento eliminado exitosamente: %s = ", partes[1]);
-          slist_recorrer(l->lista, imprimir_entero);
-          puts("");
-        }
+      Listas lista_ptr = lista;
+      while(lista_ptr)
+      {
+        if(!strcmp(lista_ptr->nombre, partes[1]))
+          //slist_indice(lista_ptr->lista, atoi(partes[2]));
+          break;
+        lista_ptr = lista_ptr->sig;
       }
 
-      if (!esta) {
+      if(!lista_ptr){
         printf("ERROR: no existe la lista %s\n", partes[1]);
+        continue;
       }
 
-    }
-    else if (!strcmp(partes[0],"contiene"))
-    {
-      //assert(args > 2);
-      //assert(isdigit(partes[2]));
+      int elem = atoi(partes[2]);
+      int index = 0;
+      SList slist_aux = lista_ptr->lista;
 
-      esta = 0;
-      for (GList nodo = listas; nodo != NULL && !esta; nodo = nodo->sig) {
-        Lista* l = (Lista*) nodo->dato;
-
-        if (!strcmp(l->nombre, partes[1])) {
-          esta++;
-          if (slist_contiene(l->lista, atoi(partes[2]))) {
-            puts("SI");
-          } else { puts("NO"); }
-        }
+      while(slist_aux)
+      {
+        if(slist_aux->dato == elem)
+          printf("%d ", index);
+        slist_aux = slist_aux->sig;
+        index++;
       }
-
-      if (!esta) {
-        printf("ERROR: no existe la lista %s\n", partes[1]);
-      }
-
-    }
-    else if (!strcmp(partes[0],"indice"))
-    {
-      //assert(args > 2);
-      //assert(isdigit(partes[2]));
-
-      esta = 0;
-      for (GList nodo = listas; nodo != NULL && !esta; nodo = nodo->sig) {
-        Lista* l = (Lista*) nodo->dato;
-
-        if (!strcmp(l->nombre, partes[1])) {
-          esta++;
-          indice(l->lista, atoi(partes[2]));
-        }
-      }
-
-      if (!esta) {
-        printf("ERROR: no existe la lista %s\n", partes[1]);
-      }
-
+      printf("\n");
     }
     else if (!strcmp(partes[0],"intersecar"))
     {
       //assert(args > 3);
 
-      esta1 = 0, esta2 = 0;
-      for (GList nodo = listas; nodo != NULL && (!esta1 || !esta2); nodo = nodo->sig) {
-        Lista* n = (Lista*) nodo->dato;
+      Listas lista_ptr1 = lista;
+      Listas lista_ptr2 = lista;
 
-        if (!strcmp(n->nombre, partes[1])) {
-          printf("%s = %s\n", n->nombre, partes[1]);
-          l1 = n;
-          esta1++;
-        } else if (!strcmp(l1->nombre, partes[2])) {
-          printf("%s = %s\n", n->nombre, partes[2]);
-          l2 = n;
-          esta2++;
-        }
+      // Checkear que lista1 exista
+      while (lista_ptr1){
+        if (!strcmp(lista_ptr1->nombre, partes[1]))
+          break;
+        lista_ptr1 = lista_ptr1->sig;
       }
 
-      if (!esta1) {
+      if (!lista_ptr1){
         printf("ERROR: no existe la lista %s\n", partes[1]);
-      } else if (!esta2) {
-        printf("ERROR: no existe la lista %s\n", partes[2]);
-      } else {
-        Lista* l = malloc(sizeof(Lista));
-        l->nombre = partes[3];
-        l->lista = slist_intersecar(l1->lista, l2->lista);
-
-        listas = glist_agregar_inicio(listas, (void*) l);
-        printf("Lista creada exitosamente: %s = ", partes[3]);
-        slist_recorrer(l->lista, imprimir_entero);
-        puts("");
+        continue;
       }
 
+      // Checkear que lista2 exista
+      while (lista_ptr2){
+        if (!strcmp(lista_ptr2->nombre, partes[2]))
+          break;
+        lista_ptr2 = lista_ptr2->sig;
+      }
+
+      if (!lista_ptr2){
+        printf("ERROR: no existe la lista %s\n", partes[2]);
+        continue;
+      }
+
+      // Concatenar listas
+      SList slist = slist_intersecar(lista_ptr1->lista, lista_ptr2->lista);
+
+      lista = lista_agregar_final(lista, partes[3], slist);
+
+      printf("Listas intersecadas exitosamente: %s = ", partes[3]);
+      slist_recorrer(slist, imprimir_entero);
+      printf("\n");
     }
     else if (!strcmp(partes[0],"ordenar"))
     {
       //assert(args > 1);
 
-      esta = 0;
-      for (GList nodo = listas; nodo != NULL && !esta; nodo = nodo->sig) {
-        Lista* l = (Lista*) nodo->dato;
-
-        if (!strcmp(l->nombre, partes[1]))
+      Listas lista_ptr = lista;
+      while(lista_ptr)
+      {
+        if (!strcmp(lista_ptr->nombre, partes[1]))
         {
-          esta++;
-          l->lista = slist_ordenar(l->lista, menor);
-          printf("Lista ordenada exitosamente: %s = ", partes[1]);
-          slist_recorrer(l->lista, imprimir_entero);
-          puts("");
+          break;
         }
+        lista_ptr = lista_ptr->sig;
       }
 
-      if (!esta)
+      if (!lista_ptr)
         printf("ERROR: no existe la lista %s\n", partes[1]);
+
+      lista_ptr->lista = slist_ordenar(lista_ptr->lista, menor);
+      printf("Lista ordenada exitosamente: %s = ", partes[1]);
+      slist_recorrer(lista_ptr->lista, imprimir_entero);
 
     }
     else if (!strcmp(partes[0],"quit"))
     {
       //libero antes de salir
       //unica forma de salir
-      destruir_listas(listas);
+      for (int i = 0; i < 4; i++) {
+        free(partes[i]);
+      }
+      free(partes);
+      free(parte);
       free(buf);
+      lista_destruir(lista);
 
       return 0;
     }
@@ -465,7 +434,11 @@ int main(int argc, char const *argv[]) {
     {
       puts("ERROR: comando invalido");
     }
+    for (int i = 0; i < 4; i++) {
+      free(partes[i]);
+    }
+    free(partes);
+    free(parte);
   }
   return 0;
 }
-
